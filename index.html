@@ -61,8 +61,8 @@ button.toggle.active { background: rgba(100,170,255,0.2); border-color: #6af; }
   </div>
 
   <div class="control">
-    <label>Geodesic Frequency <span class="value" id="freq-val">1</span></label>
-    <input type="range" id="frequency" min="1" max="6" value="1" step="1">
+    <label>Geodesic Frequency <span class="value" id="freq-val">3</span></label>
+    <input type="range" id="frequency" min="1" max="6" value="3" step="1">
   </div>
 
   <div class="control">
@@ -71,7 +71,7 @@ button.toggle.active { background: rgba(100,170,255,0.2); border-color: #6af; }
   </div>
 
   <div class="checkbox-control">
-    <input type="checkbox" id="show-fol">
+    <input type="checkbox" id="show-fol" checked>
     <label for="show-fol">Show Flower of Life circles</label>
   </div>
 
@@ -530,8 +530,8 @@ class App {
     this.icosaData = makeIcosahedronData();
     this.pinCity = 'jerusalem';
     this.spinAngle = 0;
-    this.frequency = 1;
-    this.showFOL = false;
+    this.frequency = 3;
+    this.showFOL = true;
     this.showCities = true;
     this.pinnedVertices = [];
     this.transition = { active: false, progress: 0, direction: 1 };
@@ -599,12 +599,21 @@ class App {
       this.spinAngle
     );
 
-    // Draw icosahedron edges
+    // Draw icosahedron edges as great circle arcs (not straight lines)
+    // so they stay on the sphere surface instead of cutting through it
     const edgePositions = [];
+    const edgeSegments = 16; // subdivisions per edge
     this.icosaData.edges.forEach(([a, b]) => {
-      const va = this.pinnedVertices[a].clone().multiplyScalar(ICOSA_RADIUS);
-      const vb = this.pinnedVertices[b].clone().multiplyScalar(ICOSA_RADIUS);
-      edgePositions.push(va.x, va.y, va.z, vb.x, vb.y, vb.z);
+      const va = this.pinnedVertices[a].clone().normalize();
+      const vb = this.pinnedVertices[b].clone().normalize();
+      for (let s = 0; s < edgeSegments; s++) {
+        const t0 = s / edgeSegments;
+        const t1 = (s + 1) / edgeSegments;
+        // Slerp to follow great circle arc
+        const p0 = slerp(va, vb, t0).multiplyScalar(ICOSA_RADIUS);
+        const p1 = slerp(va, vb, t1).multiplyScalar(ICOSA_RADIUS);
+        edgePositions.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
+      }
     });
 
     const edgeGeo = new THREE.BufferGeometry();
@@ -698,6 +707,17 @@ class App {
     const linePositions = [];
     const r = ICOSA_RADIUS + 0.001;
 
+    // Helper: push an arc between two points on the sphere
+    const pushArc = (p0, p1, segs) => {
+      for (let s = 0; s < segs; s++) {
+        const a = slerp(p0.clone().normalize(), p1.clone().normalize(), s / segs).multiplyScalar(r);
+        const b = slerp(p0.clone().normalize(), p1.clone().normalize(), (s+1) / segs).multiplyScalar(r);
+        linePositions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      }
+    };
+    // More arc segments for low frequency (larger triangles)
+    const arcSegs = this.frequency <= 2 ? 4 : 2;
+
     this.icosaData.faces.forEach(([ai, bi, ci]) => {
       const a = this.pinnedVertices[ai];
       const b = this.pinnedVertices[bi];
@@ -705,12 +725,9 @@ class App {
       const { verts, tris } = subdivideFace(a, b, c, this.frequency, r);
 
       tris.forEach(([i, j, k]) => {
-        const p0 = verts[i], p1 = verts[j], p2 = verts[k];
-        linePositions.push(
-          p0.x, p0.y, p0.z, p1.x, p1.y, p1.z,
-          p1.x, p1.y, p1.z, p2.x, p2.y, p2.z,
-          p2.x, p2.y, p2.z, p0.x, p0.y, p0.z,
-        );
+        pushArc(verts[i], verts[j], arcSegs);
+        pushArc(verts[j], verts[k], arcSegs);
+        pushArc(verts[k], verts[i], arcSegs);
       });
     });
 

@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sacred Geometry Globe</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Helvetica Neue', sans-serif; color: #fff; }
+canvas { display: block; }
+
+#ui {
+  position: fixed; top: 16px; right: 16px;
+  background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px; padding: 16px; width: 260px;
+  backdrop-filter: blur(8px); z-index: 10;
+}
+#ui h2 { font-size: 14px; margin-bottom: 12px; font-weight: 500; letter-spacing: 0.5px; }
+.control { margin-bottom: 12px; }
+.control label { display: block; font-size: 11px; color: #aaa; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.control input[type="range"] { width: 100%; accent-color: #6af; }
+.control .value { font-size: 11px; color: #6af; float: right; margin-top: -16px; }
+button.toggle {
+  width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.05); color: #fff; border-radius: 4px;
+  cursor: pointer; font-size: 12px; letter-spacing: 0.5px; transition: background 0.2s;
+}
+button.toggle:hover { background: rgba(255,255,255,0.15); }
+button.toggle.active { background: rgba(100,170,255,0.2); border-color: #6af; }
+
+.checkbox-control { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.checkbox-control input { accent-color: #6af; }
+.checkbox-control label { font-size: 11px; color: #ccc; margin: 0; text-transform: none; }
+
+#info {
+  position: fixed; bottom: 16px; left: 16px;
+  font-size: 11px; color: #666; z-index: 10;
+}
+
+#pin-info {
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);
+  font-size: 11px; color: #888; line-height: 1.6;
+  max-height: 50vh; overflow-y: auto;
+}
+#pin-info a { color: #6af; text-decoration: none; }
+#pin-info a:hover { text-decoration: underline; }
+.vertex-row { margin-bottom: 6px; }
+.vertex-coords { color: #999; }
+.vertex-place { color: #ccc; font-size: 10px; margin-left: 2px; }
+.vertex-place.loading { color: #555; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <h2>Sacred Geometry Globe</h2>
+
+  <div style="display:flex; gap:6px; margin-bottom:12px;">
+    <button class="toggle active" id="btn-globe">3D Globe</button>
+    <button class="toggle" id="btn-flat">Dymaxion</button>
+  </div>
+
+  <div class="control">
+    <label>Geodesic Frequency <span class="value" id="freq-val">1</span></label>
+    <input type="range" id="frequency" min="1" max="6" value="1" step="1">
+  </div>
+
+  <div class="control">
+    <label>Icosa Spin (around pin) <span class="value" id="spin-val">0°</span></label>
+    <input type="range" id="spin" min="0" max="360" value="0" step="1">
+  </div>
+
+  <div class="checkbox-control">
+    <input type="checkbox" id="show-fol">
+    <label for="show-fol">Show Flower of Life circles</label>
+  </div>
+
+  <div class="checkbox-control">
+    <input type="checkbox" id="show-pentagons" checked>
+    <label for="show-pentagons">Show pentagonal defects ⬠</label>
+  </div>
+
+  <div class="checkbox-control">
+    <input type="checkbox" id="show-cities" checked>
+    <label for="show-cities">Show city markers</label>
+  </div>
+
+  <div class="control">
+    <label>Pin vertex to</label>
+    <select id="pin-city" style="width:100%; padding:4px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; font-size:12px;">
+      <optgroup label="現代都市">
+        <option value="jerusalem">Jerusalem (31.77°N, 35.21°E)</option>
+        <option value="tokyo">Tokyo (35.68°N, 139.65°E)</option>
+        <option value="washington">Washington DC (38.91°N, -77.04°E)</option>
+      </optgroup>
+      <optgroup label="日本の聖地">
+        <option value="ise">伊勢神宮 (34.46°N, 136.73°E)</option>
+        <option value="fuji">富士山 (35.36°N, 138.73°E)</option>
+      </optgroup>
+      <optgroup label="古代文明 — Eurasia">
+        <option value="giza">Giza (29.98°N, 31.13°E)</option>
+        <option value="delphi">Delphi — 大地のへそ (38.48°N, 22.50°E)</option>
+        <option value="gobekli">Göbekli Tepe — 最古の神殿 (37.22°N, 38.92°E)</option>
+        <option value="kailash">Mt. Kailash 須弥山 (31.07°N, 81.31°E)</option>
+        <option value="angkor">Angkor Wat (13.41°N, 103.87°E)</option>
+      </optgroup>
+      <optgroup label="古代文明 — Americas / Pacific / Africa">
+        <option value="cusco">Cusco — インカのへそ (13.52°S, 71.98°W)</option>
+        <option value="teotihuacan">Teotihuacan — 神々の都市 (19.69°N, 98.84°W)</option>
+        <option value="easter">Easter Island — 世界のへそ (27.11°S, 109.35°W)</option>
+        <option value="cahokia">Cahokia — 北米最大の古代都市 (38.66°N, 90.06°W)</option>
+        <option value="nanmadol">Nan Madol — 太平洋のヴェネツィア (6.84°N, 158.33°E)</option>
+        <option value="uluru">Uluru — 夢の中心 (25.34°S, 131.04°E)</option>
+        <option value="zimbabwe">Great Zimbabwe (20.27°S, 30.93°E)</option>
+      </optgroup>
+    </select>
+  </div>
+
+  <div class="control" style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+    <label>12 Singularity Presets</label>
+    <select id="preset-set" style="width:100%; padding:4px; background:#222; color:#fff; border:1px solid #444; border-radius:3px; font-size:12px;">
+      <option value="none">— Custom (pin single city) —</option>
+      <option value="sanderson">Vile Vortices (Sanderson Grid)</option>
+      <option value="omphalos">世界のへそ (Omphalos)</option>
+      <option value="megalith">巨石文明遺跡 (Megalithic Sites)</option>
+      <option value="axial">軸の時代 (Axial Age Centers)</option>
+      <option value="geopolitical">現代地政学の結節点</option>
+    </select>
+    <div id="preset-desc" style="font-size:10px; color:#888; margin-top:4px; line-height:1.4;"></div>
+  </div>
+
+  <div id="pin-info"></div>
+</div>
+
+<div id="info">
+  Drag to rotate · Scroll to zoom · Right-drag to pan
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.172.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.172.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── Constants ───────────────────────────────────────────────
+const GLOBE_RADIUS = 1;
+const ICOSA_RADIUS = 1.005;
+const PHI = (1 + Math.sqrt(5)) / 2;
+const DEG = Math.PI / 180;
+
+const CITIES = {
+  // ── 現代都市 ──
+  jerusalem:   { lat: 31.7683, lon: 35.2137, name: 'Jerusalem', color: 0xffaa33 },
+  tokyo:       { lat: 35.6762, lon: 139.6503, name: 'Tokyo', color: 0xff3366 },
+  washington:  { lat: 38.9072, lon: -77.0369, name: 'Washington DC', color: 0x33aaff },
+  // ── 日本の聖地 ──
+  ise:         { lat: 34.4611, lon: 136.7256, name: '伊勢神宮', color: 0xff8844 },
+  fuji:        { lat: 35.3606, lon: 138.7274, name: '富士山', color: 0x88ccff },
+  // ── 古代文明・Omphalos ──
+  giza:        { lat: 29.9792, lon: 31.1342, name: 'Giza', color: 0xffdd44 },
+  delphi:      { lat: 38.4824, lon: 22.5010, name: 'Delphi', color: 0xccdd55 },
+  gobekli:     { lat: 37.2231, lon: 38.9225, name: 'Göbekli Tepe', color: 0xddaa44 },
+  kailash:     { lat: 31.0672, lon: 81.3119, name: 'Mt. Kailash 須弥山', color: 0xeeeeff },
+  angkor:      { lat: 13.4125, lon: 103.8670, name: 'Angkor Wat', color: 0x44ddaa },
+  uluru:       { lat: -25.3444, lon: 131.0369, name: 'Uluru', color: 0xff6633 },
+  cusco:       { lat: -13.5170, lon: -71.9785, name: 'Cusco (Qosqo)', color: 0xffaa66 },
+  teotihuacan: { lat: 19.6925, lon: -98.8438, name: 'Teotihuacan', color: 0xdd8844 },
+  easter:      { lat: -27.1127, lon: -109.3497, name: 'Easter Island', color: 0x66aaff },
+  zimbabwe:    { lat: -20.2674, lon: 30.9338, name: 'Great Zimbabwe', color: 0xaaaa44 },
+  cahokia:     { lat: 38.6605, lon: -90.0622, name: 'Cahokia', color: 0x88bb66 },
+  nanmadol:    { lat: 6.8444, lon: 158.3344, name: 'Nan Madol', color: 0x44aadd },
+};
+
+// ─── 12 Singularity Point Sets ───────────────────────────────
+const POINT_SETS = {
+  sanderson: {
+    name: 'Vile Vortices (Sanderson Grid)',
+    desc: 'Ivan Sanderson (1972) が提唱した正二十面体地球グリッド。異常現象が報告される12地点が数学的に正確な正二十面体頂点を形成する。バミューダ三角海域、ドラゴントライアングル（魔の海）など。',
+    points: [
+      { lat: 26.57, lon: 31.72, name: 'Giza/Egypt', sig: 'ギザのピラミッド群。古代世界の測地基準点' },
+      { lat: 26.57, lon: 103.72, name: 'Indus Valley', sig: 'モヘンジョ=ダロ近郊。インダス文明の中心' },
+      { lat: 26.57, lon: 175.72, name: 'Pacific Megaliths', sig: 'ナン・マドル近海。太平洋の巨石文明圏' },
+      { lat: 26.57, lon: -112.28, name: 'Sea of Cortez', sig: 'メキシコ沖。古代メソアメリカ文明圏の西端' },
+      { lat: 26.57, lon: -40.28, name: 'Bermuda Triangle', sig: 'バミューダ三角海域。大西洋の異常現象地帯' },
+      { lat: -26.57, lon: 67.72, name: 'Indian Ocean', sig: 'インド洋中央。南半球の対称点' },
+      { lat: -26.57, lon: 139.72, name: 'Australia/Coral Sea', sig: 'オーストラリア東部。ウルル方面' },
+      { lat: -26.57, lon: -148.28, name: 'South Pacific', sig: '南太平洋。ポリネシア航海圏' },
+      { lat: -26.57, lon: -76.28, name: 'Nazca/Peru', sig: 'ナスカの地上絵近郊。南米古代文明圏' },
+      { lat: -26.57, lon: -4.28, name: 'South Atlantic', sig: '南大西洋異常帯。磁場異常地域' },
+      { lat: 73.43, lon: 103.72, name: 'Siberia', sig: 'シベリア北部。ツングースカ事件（1908年）' },
+      { lat: -73.43, lon: -76.28, name: 'Antarctica', sig: '南極大陸。ピリ・レイスの地図に描かれた「南の大陸」' },
+    ]
+  },
+  omphalos: {
+    name: '世界のへそ (Omphalos)',
+    desc: '各文明が「世界の中心」「大地のへそ」と呼んだ聖地12箇所。注目：クスコ↔アンコール、イースター島↔モヘンジョ=ダロは対蹠点（地球の反対側）にほぼ一致する。接触の証拠がない文明同士が「世界のへそ」と呼んだ場所が反対側という事実。',
+    points: [
+      { lat: 31.77, lon: 35.21, name: 'Jerusalem', sig: '三宗教の聖地。Omphalos Mundi' },
+      { lat: 38.48, lon: 22.50, name: 'Delphi', sig: 'ゼウスの鷲が出会った「大地のへそ」。オンパロス石' },
+      { lat: 29.98, lon: 31.13, name: 'Giza', sig: '古代エジプトの「世界の中心」。子午線の基準点' },
+      { lat: 21.42, lon: 39.83, name: 'Mecca', sig: 'イスラムの聖地。カアバ神殿は「大地の中心」' },
+      { lat: 31.07, lon: 81.31, name: 'Mt. Kailash', sig: 'ヒンドゥー・仏教の宇宙山。須弥山' },
+      { lat: 25.32, lon: 83.01, name: 'Varanasi', sig: 'シヴァの都市。輪廻から解脱する場所' },
+      { lat: 13.41, lon: 103.87, name: 'Angkor Wat', sig: 'メール山（須弥山）の地上再現。↔クスコと対蹠点' },
+      { lat: -25.34, lon: 131.04, name: 'Uluru', sig: 'アボリジニの聖地。大地の夢の中心' },
+      { lat: 19.69, lon: -98.84, name: 'Teotihuacan', sig: '「神々が生まれた場所」。太陽と月のピラミッド' },
+      { lat: -13.52, lon: -71.97, name: 'Cusco', sig: 'インカの「世界のへそ（Qosqo）」。↔アンコールと対蹠点' },
+      { lat: -27.11, lon: -109.35, name: 'Easter Island', sig: 'Te Pito O Te Henua＝「世界のへそ」。↔モヘンジョ=ダロと対蹠点' },
+      { lat: -20.27, lon: 30.93, name: 'Great Zimbabwe', sig: 'ショナ族の「石の家」。南アフリカの権力中心' },
+    ]
+  },
+  megalith: {
+    name: '巨石文明遺跡 (Megalithic Sites)',
+    desc: '世界各地の巨石建築・天文観測施設。共通点：天文整列、巨石運搬技術、建設年代の謎。これらを正二十面体で結ぶと何が見えるか。',
+    points: [
+      { lat: 29.98, lon: 31.13, name: 'Giza', sig: 'ギザ三大ピラミッド。建造年代紀元前2560年頃' },
+      { lat: 51.18, lon: -1.83, name: 'Stonehenge', sig: '環状列石。夏至の日の出に整列。紀元前3000-2000年' },
+      { lat: 37.22, lon: 38.92, name: 'Göbekli Tepe', sig: '世界最古の神殿。紀元前9500年。農耕以前' },
+      { lat: 13.41, lon: 103.87, name: 'Angkor Wat', sig: '世界最大の宗教建築。竜座の星図と対応' },
+      { lat: -13.16, lon: -72.55, name: 'Machu Picchu', sig: 'インカの天空都市。インティワタナ（日時計）' },
+      { lat: -27.11, lon: -109.35, name: 'Easter Island', sig: 'モアイ像887体。運搬方法は未解明' },
+      { lat: -16.56, lon: -68.67, name: 'Tiwanaku', sig: 'プレ・インカ文明。太陽の門。標高3800m' },
+      { lat: 6.84, lon: 158.33, name: 'Nan Madol', sig: '太平洋のヴェネツィア。玄武岩巨石92の人工島' },
+      { lat: -20.27, lon: 30.93, name: 'Great Zimbabwe', sig: '石壁都市。11-15世紀。サハラ以南最大の石造建築' },
+      { lat: 38.66, lon: -90.06, name: 'Cahokia', sig: '北米最大の先住民都市。モンクスマウンド。紀元1050年頃' },
+      { lat: 27.17, lon: 68.00, name: 'Mohenjo-daro', sig: 'インダス文明。計画都市。紀元前2500年' },
+      { lat: 47.59, lon: -3.07, name: 'Carnac', sig: '3000以上のメンヒルが並ぶ。紀元前4500年。ヨーロッパ最大の巨石群' },
+    ]
+  },
+  axial: {
+    name: '軸の時代 (Axial Age Centers)',
+    desc: 'カール・ヤスパースの「軸の時代」(800-200 BCE)。ギリシャ哲学、仏教、儒教、ゾロアスター教、ユダヤ教の預言者が同時多発的に出現。なぜ？ これらの発祥地を正二十面体で結ぶ。',
+    points: [
+      { lat: 37.97, lon: 23.73, name: 'Athens', sig: 'ソクラテス・プラトン・アリストテレス。西洋哲学の発祥' },
+      { lat: 31.77, lon: 35.21, name: 'Jerusalem', sig: 'イザヤ・エレミヤ。預言者の時代' },
+      { lat: 25.32, lon: 83.01, name: 'Varanasi', sig: 'ブッダが初転法輪を行ったサールナートの近隣' },
+      { lat: 35.60, lon: 116.99, name: 'Qufu', sig: '孔子の生誕地。儒教の発祥' },
+      { lat: 29.93, lon: 52.89, name: 'Persepolis', sig: 'ゾロアスター教の中心。善悪二元論の起源' },
+      { lat: 27.49, lon: 83.28, name: 'Lumbini', sig: 'ブッダの生誕地。紀元前563年頃' },
+      { lat: 34.55, lon: 108.93, name: "Xi'an (Chang'an)", sig: '老子・荘子の活動圏。道教の源流' },
+      { lat: 41.01, lon: 28.98, name: 'Istanbul/Byzantium', sig: '東西文明の結節点。後のキリスト教・イスラム教の交差点' },
+      { lat: 31.20, lon: 29.92, name: 'Alexandria', sig: 'ヘレニズムの知の首都。ムセイオン（図書館）' },
+      { lat: 21.42, lon: 39.83, name: 'Mecca', sig: 'アブラハムのカアバ。軸の時代以前からの聖地' },
+      { lat: -13.52, lon: -71.97, name: 'Cusco', sig: 'インカの叡智。南米の独自軸の時代' },
+      { lat: 19.69, lon: -98.84, name: 'Teotihuacan', sig: 'メソアメリカの叡智。同時代の独自発展' },
+    ]
+  },
+  geopolitical: {
+    name: '現代地政学の結節点',
+    desc: '現代世界秩序を規定する12の結節点。軍事・経済・情報のハブ。「世界を支配するなら、この12点を押さえろ」。地政学的チョークポイントと権力の集中点。',
+    points: [
+      { lat: 38.91, lon: -77.04, name: 'Washington DC', sig: '世界覇権の首都。ペンタゴン・CIA・世界銀行' },
+      { lat: 51.51, lon: -0.13, name: 'London', sig: 'シティ・オブ・ロンドン。グローバル金融の心臓' },
+      { lat: 55.76, lon: 37.62, name: 'Moscow', sig: 'ユーラシアのハートランド。核戦力の一極' },
+      { lat: 39.91, lon: 116.40, name: 'Beijing', sig: '14億人の統治中枢。一帯一路の起点' },
+      { lat: 35.68, lon: 139.65, name: 'Tokyo', sig: '世界第3位の経済力。太平洋の西端' },
+      { lat: 31.23, lon: 121.47, name: 'Shanghai', sig: '世界最大の港湾都市。東アジア経済の動脈' },
+      { lat: 1.35, lon: 103.82, name: 'Singapore', sig: 'マラッカ海峡。世界貿易の40%が通過' },
+      { lat: 30.04, lon: 31.24, name: 'Cairo/Suez', sig: 'スエズ運河。ヨーロッパ↔アジアの咽喉' },
+      { lat: 25.28, lon: 55.30, name: 'Dubai', sig: '中東の金融ハブ。石油経済の結節点' },
+      { lat: 9.08, lon: -79.68, name: 'Panama Canal', sig: '太平洋↔大西洋の咽喉点' },
+      { lat: 41.01, lon: 28.98, name: 'Istanbul', sig: 'ボスポラス海峡。黒海の出入口' },
+      { lat: -33.87, lon: 18.42, name: 'Cape Town', sig: '喜望峰。スエズ代替航路。南半球の戦略拠点' },
+    ]
+  },
+};
+
+// ─── Math Utilities ──────────────────────────────────────────
+function latLonToVec3(lat, lon, r = 1) {
+  const phi = (90 - lat) * DEG;
+  const theta = (lon + 180) * DEG;
+  return new THREE.Vector3(
+    -r * Math.sin(phi) * Math.cos(theta),
+     r * Math.cos(phi),
+     r * Math.sin(phi) * Math.sin(theta)
+  );
+}
+
+function vec3ToLatLon(v) {
+  const r = v.length();
+  const lat = 90 - Math.acos(v.y / r) / DEG;
+  const lon = Math.atan2(v.z, -v.x) / DEG - 180;
+  return { lat, lon: ((lon + 540) % 360) - 180 };
+}
+
+function slerp(a, b, t) {
+  const dot = Math.max(-1, Math.min(1, a.dot(b)));
+  const omega = Math.acos(dot);
+  if (omega < 1e-6) return a.clone().lerp(b, t);
+  const sinO = Math.sin(omega);
+  return a.clone().multiplyScalar(Math.sin((1 - t) * omega) / sinO)
+    .add(b.clone().multiplyScalar(Math.sin(t * omega) / sinO));
+}
+
+// ─── Icosahedron Data ────────────────────────────────────────
+function makeIcosahedronData() {
+  const t = PHI;
+  const raw = [
+    [-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0],
+    [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t],
+    [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1],
+  ];
+  const vertices = raw.map(([x, y, z]) => new THREE.Vector3(x, y, z).normalize());
+  const faces = [
+    [0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
+    [1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+    [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
+    [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1],
+  ];
+  const edges = new Set();
+  faces.forEach(([a, b, c]) => {
+    [a*12+b, b*12+a, b*12+c, c*12+b, a*12+c, c*12+a].forEach(k => edges.add(k));
+  });
+  const edgeList = [];
+  edges.forEach(k => {
+    const a = Math.floor(k / 12), b = k % 12;
+    if (a < b) edgeList.push([a, b]);
+  });
+  return { vertices, faces, edges: edgeList };
+}
+
+function pinIcosahedron(vertices, vertexIdx, targetLatLon, spinAngle = 0) {
+  const target = latLonToVec3(targetLatLon.lat, targetLatLon.lon).normalize();
+  const source = vertices[vertexIdx].clone().normalize();
+
+  const qAlign = new THREE.Quaternion();
+  qAlign.setFromUnitVectors(source, target);
+
+  const qSpin = new THREE.Quaternion();
+  qSpin.setFromAxisAngle(target, spinAngle * DEG);
+
+  const qFinal = qSpin.multiply(qAlign);
+  return vertices.map(v => v.clone().applyQuaternion(qFinal).normalize());
+}
+
+// ─── Geodesic Subdivision ────────────────────────────────────
+function subdivideFace(v0, v1, v2, freq, radius) {
+  const verts = [];
+  const tris = [];
+  const grid = [];
+
+  for (let i = 0; i <= freq; i++) {
+    grid[i] = [];
+    for (let j = 0; j <= freq - i; j++) {
+      const a = i / freq, b = j / freq, c = 1 - a - b;
+      const p = new THREE.Vector3()
+        .addScaledVector(v0, c)
+        .addScaledVector(v1, a)
+        .addScaledVector(v2, b)
+        .normalize()
+        .multiplyScalar(radius);
+      grid[i][j] = verts.length;
+      verts.push(p);
+    }
+  }
+
+  for (let i = 0; i < freq; i++) {
+    for (let j = 0; j < freq - i; j++) {
+      tris.push([grid[i][j], grid[i + 1][j], grid[i][j + 1]]);
+      if (j < freq - i - 1) {
+        tris.push([grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]]);
+      }
+    }
+  }
+
+  return { verts, tris };
+}
+
+// ─── Flower of Life (circles at subdivision vertices) ────────
+function createFOLCircles(verts, radius, circleRadius) {
+  const points = [];
+  const segments = 32;
+  verts.forEach(v => {
+    const normal = v.clone().normalize();
+    const tangent = new THREE.Vector3(0, 1, 0);
+    if (Math.abs(normal.dot(tangent)) > 0.99) tangent.set(1, 0, 0);
+    const bitangent = new THREE.Vector3().crossVectors(normal, tangent).normalize();
+    tangent.crossVectors(bitangent, normal).normalize();
+
+    for (let i = 0; i <= segments; i++) {
+      const angle = (i / segments) * Math.PI * 2;
+      const p = v.clone()
+        .addScaledVector(tangent, Math.cos(angle) * circleRadius)
+        .addScaledVector(bitangent, Math.sin(angle) * circleRadius)
+        .normalize()
+        .multiplyScalar(radius);
+      points.push(p);
+      if (i > 0 && i <= segments) {
+        // duplicate for line segments
+      }
+    }
+  });
+  return points;
+}
+
+// ─── Dymaxion Net Layout ─────────────────────────────────────
+// BFS reflection unfolding: unfold icosahedron by reflecting each face
+// across the shared edge with its parent in a spanning tree.
+// This guarantees a connected net (all faces touch).
+
+function buildDymaxionNet(faces) {
+  // Build face adjacency: which faces share an edge
+  const adj = faces.map(() => []);
+  for (let i = 0; i < faces.length; i++) {
+    for (let j = i + 1; j < faces.length; j++) {
+      const shared = faces[i].filter(v => faces[j].includes(v));
+      if (shared.length === 2) {
+        adj[i].push({ face: j, edge: shared });
+        adj[j].push({ face: i, edge: shared });
+      }
+    }
+  }
+
+  // Build spanning tree via BFS.
+  // We control neighbor visit order to produce a horizontally-spreading layout.
+  // Strategy: prefer neighbors that share the "base" edge (wider spread)
+  // over neighbors that share "side" edges (which tend to fold back).
+  const visited = new Set([0]);
+  const queue = [0];
+  const parentOf = new Array(20).fill(-1);
+  const parentEdgeOf = new Array(20).fill(null);
+  const order = [0];
+
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    for (const { face: next, edge } of adj[curr]) {
+      if (!visited.has(next)) {
+        visited.add(next);
+        parentOf[next] = curr;
+        parentEdgeOf[next] = edge;
+        queue.push(next);
+        order.push(next);
+      }
+    }
+  }
+
+  // Reflect point P across line A-B
+  function reflect(P, A, B) {
+    const dx = B[0] - A[0], dy = B[1] - A[1];
+    const len2 = dx * dx + dy * dy;
+    if (len2 < 1e-12) return [P[0], P[1]];
+    const t = ((P[0] - A[0]) * dx + (P[1] - A[1]) * dy) / len2;
+    return [2 * (A[0] + t * dx) - P[0], 2 * (A[1] + t * dy) - P[1]];
+  }
+
+  // Place face 0 as an equilateral triangle
+  const h = Math.sqrt(3) / 2;
+  const layout = new Array(20);
+  layout[0] = { verts: [[0, 0], [1, 0], [0.5, h]] };
+
+  // Unfold each face by reflecting the parent's opposite vertex across the shared edge
+  for (let k = 1; k < order.length; k++) {
+    const fi = order[k];
+    const pi = parentOf[fi];
+    const sharedEdge = parentEdgeOf[fi];
+
+    const parFace3D = faces[pi];
+    const parVerts2D = layout[pi].verts;
+
+    // Find which 2D vertices of parent correspond to the shared 3D edge
+    const ei0 = parFace3D.indexOf(sharedEdge[0]);
+    const ei1 = parFace3D.indexOf(sharedEdge[1]);
+    const oi = [0, 1, 2].find(i => i !== ei0 && i !== ei1);
+
+    const A = parVerts2D[ei0];
+    const B = parVerts2D[ei1];
+    const C = parVerts2D[oi];
+    const D = reflect(C, A, B); // new vertex
+
+    // Map child face's 3D vertex indices to 2D positions
+    const childFace3D = faces[fi];
+    const childVerts = new Array(3);
+    const ci0 = childFace3D.indexOf(sharedEdge[0]);
+    const ci1 = childFace3D.indexOf(sharedEdge[1]);
+    const ci2 = [0, 1, 2].find(i => i !== ci0 && i !== ci1);
+
+    childVerts[ci0] = A;
+    childVerts[ci1] = B;
+    childVerts[ci2] = D;
+
+    layout[fi] = { verts: childVerts };
+  }
+
+  // Center and scale the layout
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  layout.forEach(f => f.verts.forEach(([x, y]) => {
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }));
+
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const span = Math.max(maxX - minX, maxY - minY);
+  const sc = 3.0 / span; // fit in ~3 units
+
+  layout.forEach(f => {
+    f.verts = f.verts.map(([x, y]) => [(x - cx) * sc, (y - cy) * sc]);
+  });
+
+  return layout;
+}
+
+// ─── App ─────────────────────────────────────────────────────
+class App {
+  constructor() {
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.01, 100);
+    this.camera.position.set(0, 0, 3);
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.setSize(innerWidth, innerHeight);
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    document.body.appendChild(this.renderer.domElement);
+
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.05;
+    this.controls.minDistance = 1.2;
+    this.controls.maxDistance = 10;
+
+    // State
+    this.mode = 'globe'; // 'globe' or 'flat'
+    this.icosaData = makeIcosahedronData();
+    this.pinCity = 'jerusalem';
+    this.spinAngle = 0;
+    this.frequency = 1;
+    this.showFOL = false;
+    this.showCities = true;
+    this.pinnedVertices = [];
+    this.transition = { active: false, progress: 0, direction: 1 };
+
+    this.showPentagons = true;
+    this.activePreset = 'none';
+
+    this.groups = {
+      globe: new THREE.Group(),
+      icosa: new THREE.Group(),
+      subdivision: new THREE.Group(),
+      fol: new THREE.Group(),
+      pentagons: new THREE.Group(),
+      cities: new THREE.Group(),
+      presetMarkers: new THREE.Group(),
+      flat: new THREE.Group(),
+    };
+
+    Object.values(this.groups).forEach(g => this.scene.add(g));
+
+    this.setupLighting();
+    this.createGlobe();
+    this.updateIcosahedron();
+    this.createCityMarkers();
+    this.setupUI();
+    this.animate();
+
+    window.addEventListener('resize', () => this.onResize());
+  }
+
+  setupLighting() {
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir.position.set(5, 3, 5);
+    this.scene.add(dir);
+  }
+
+  createGlobe() {
+    const geo = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64);
+    const loader = new THREE.TextureLoader();
+    const mat = new THREE.MeshPhongMaterial({ color: 0x4488aa, specular: 0x222222 });
+
+    this.earthTexture = null;
+    loader.load('earth_texture.jpg', (tex) => {
+      mat.map = tex;
+      mat.color.set(0xffffff);
+      mat.needsUpdate = true;
+      this.earthTexture = tex;
+    });
+
+    this.earthMesh = new THREE.Mesh(geo, mat);
+    this.groups.globe.add(this.earthMesh);
+  }
+
+  updateIcosahedron() {
+    // Clear previous
+    this.groups.icosa.clear();
+    this.groups.subdivision.clear();
+    this.groups.fol.clear();
+
+    const city = CITIES[this.pinCity];
+    this.pinnedVertices = pinIcosahedron(
+      this.icosaData.vertices, 0,
+      { lat: city.lat, lon: city.lon },
+      this.spinAngle
+    );
+
+    // Draw icosahedron edges
+    const edgePositions = [];
+    this.icosaData.edges.forEach(([a, b]) => {
+      const va = this.pinnedVertices[a].clone().multiplyScalar(ICOSA_RADIUS);
+      const vb = this.pinnedVertices[b].clone().multiplyScalar(ICOSA_RADIUS);
+      edgePositions.push(va.x, va.y, va.z, vb.x, vb.y, vb.z);
+    });
+
+    const edgeGeo = new THREE.BufferGeometry();
+    edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(edgePositions, 3));
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x6af0ff, transparent: true, opacity: 0.7 });
+    this.groups.icosa.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+    // Draw vertex dots
+    const dotGeo = new THREE.SphereGeometry(0.012, 8, 8);
+    const dotMat = new THREE.MeshBasicMaterial({ color: 0x6af0ff });
+    this.pinnedVertices.forEach((v, i) => {
+      const dot = new THREE.Mesh(dotGeo, i === 0 ? new THREE.MeshBasicMaterial({ color: 0xff6633 }) : dotMat);
+      dot.position.copy(v).multiplyScalar(ICOSA_RADIUS);
+      this.groups.icosa.add(dot);
+    });
+
+    // Subdivision
+    if (this.frequency > 1) {
+      this.drawSubdivision();
+    }
+
+    // FOL
+    if (this.showFOL) {
+      this.drawFlowerOfLife();
+    }
+
+    // Pentagon defects
+    this.groups.pentagons.clear();
+    if (this.showPentagons) {
+      this.drawPentagonDefects();
+    }
+
+    // Update vertex info
+    this.updatePinInfo();
+  }
+
+  drawPentagonDefects() {
+    const r = ICOSA_RADIUS + 0.003;
+    const pentSize = 0.04; // angular size of pentagon marker
+
+    this.pinnedVertices.forEach((v, i) => {
+      const n = v.clone().normalize();
+      // Local tangent frame
+      let t1 = new THREE.Vector3(0, 1, 0);
+      if (Math.abs(n.dot(t1)) > 0.99) t1.set(1, 0, 0);
+      const t2 = new THREE.Vector3().crossVectors(n, t1).normalize();
+      t1.crossVectors(t2, n).normalize();
+
+      // Pentagon vertices
+      const pentPoints = [];
+      for (let j = 0; j < 5; j++) {
+        const angle = (j / 5) * Math.PI * 2 - Math.PI / 2;
+        const p = n.clone().multiplyScalar(Math.cos(pentSize))
+          .addScaledVector(t1, Math.sin(pentSize) * Math.cos(angle))
+          .addScaledVector(t2, Math.sin(pentSize) * Math.sin(angle))
+          .normalize().multiplyScalar(r);
+        pentPoints.push(p);
+      }
+
+      // Pentagon outline
+      const linePos = [];
+      for (let j = 0; j < 5; j++) {
+        const a = pentPoints[j], b = pentPoints[(j + 1) % 5];
+        linePos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(linePos, 3));
+      const color = i === 0 ? 0xff4444 : 0xff6688;
+      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9, linewidth: 2 });
+      this.groups.pentagons.add(new THREE.LineSegments(geo, mat));
+
+      // Filled pentagon (semi-transparent)
+      const triPos = [];
+      const center3D = n.clone().multiplyScalar(r);
+      for (let j = 0; j < 5; j++) {
+        triPos.push(center3D.x, center3D.y, center3D.z);
+        triPos.push(pentPoints[j].x, pentPoints[j].y, pentPoints[j].z);
+        triPos.push(pentPoints[(j + 1) % 5].x, pentPoints[(j + 1) % 5].y, pentPoints[(j + 1) % 5].z);
+      }
+      const fillGeo = new THREE.BufferGeometry();
+      fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(triPos, 3));
+      const fillMat = new THREE.MeshBasicMaterial({
+        color: i === 0 ? 0xff2222 : 0xff4466,
+        transparent: true, opacity: 0.3, side: THREE.DoubleSide,
+      });
+      this.groups.pentagons.add(new THREE.Mesh(fillGeo, fillMat));
+    });
+  }
+
+  drawSubdivision() {
+    const linePositions = [];
+    const r = ICOSA_RADIUS + 0.001;
+
+    this.icosaData.faces.forEach(([ai, bi, ci]) => {
+      const a = this.pinnedVertices[ai];
+      const b = this.pinnedVertices[bi];
+      const c = this.pinnedVertices[ci];
+      const { verts, tris } = subdivideFace(a, b, c, this.frequency, r);
+
+      tris.forEach(([i, j, k]) => {
+        const p0 = verts[i], p1 = verts[j], p2 = verts[k];
+        linePositions.push(
+          p0.x, p0.y, p0.z, p1.x, p1.y, p1.z,
+          p1.x, p1.y, p1.z, p2.x, p2.y, p2.z,
+          p2.x, p2.y, p2.z, p0.x, p0.y, p0.z,
+        );
+      });
+    });
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+    const mat = new THREE.LineBasicMaterial({ color: 0x44aaff, transparent: true, opacity: 0.3 });
+    this.groups.subdivision.add(new THREE.LineSegments(geo, mat));
+  }
+
+  drawFlowerOfLife() {
+    const r = ICOSA_RADIUS + 0.002;
+    const segments = 48;
+
+    // Flower of Life: all circles have the SAME angular radius on the sphere.
+    // Each circle's center sits on the circumference of its neighbors.
+    // This creates the classic overlapping pattern with Vesica Piscis intersections.
+    //
+    // We generate the FOL pattern on a tangent plane at each icosa face center,
+    // using hexagonal grid placement, then project each circle onto the sphere.
+
+    // Determine circle angular radius based on frequency:
+    // Higher freq = smaller circles = more layers of the FOL pattern
+    const layers = Math.max(this.frequency, 2);
+
+    this.icosaData.faces.forEach(([ai, bi, ci]) => {
+      const va = this.pinnedVertices[ai].clone().normalize();
+      const vb = this.pinnedVertices[bi].clone().normalize();
+      const vc = this.pinnedVertices[ci].clone().normalize();
+
+      // Face center on sphere
+      const center = new THREE.Vector3().add(va).add(vb).add(vc).normalize();
+
+      // Angular radius of each circle = edge angular span / (layers * 2)
+      // so that the FOL fits nicely within each face
+      const edgeAngle = Math.acos(Math.max(-1, Math.min(1, va.dot(vb))));
+      const circleAngR = edgeAngle / (layers * 2);
+
+      // Build local tangent frame at face center
+      const up = center.clone();
+      let tx = new THREE.Vector3().subVectors(va, center);
+      tx.sub(up.clone().multiplyScalar(tx.dot(up))).normalize(); // project to tangent plane
+      const ty = new THREE.Vector3().crossVectors(up, tx).normalize();
+
+      // Generate FOL center positions using axial hex coordinates
+      // In FOL, distance between adjacent centers = circleAngR (they pass through each other's centers)
+      const step = circleAngR;
+      const centers = [];
+      const centerSet = new Set();
+
+      for (let q = -layers * 2; q <= layers * 2; q++) {
+        for (let s = -layers * 2; s <= layers * 2; s++) {
+          // Axial to cartesian (flat-top hex)
+          const px = step * (q + s * 0.5);
+          const py = step * (s * Math.sqrt(3) / 2);
+
+          // Check if this center is inside or near the triangle
+          // Convert to a point on the sphere
+          const pt = center.clone()
+            .addScaledVector(tx, px)
+            .addScaledVector(ty, py)
+            .normalize();
+
+          // Check if point is within the spherical triangle (with small margin)
+          const bary = sphericalBarycentric(pt, va, vb, vc);
+          if (bary && bary.u >= -0.05 && bary.v >= -0.05 && bary.w >= -0.05) {
+            const key = `${q},${s}`;
+            if (!centerSet.has(key)) {
+              centerSet.add(key);
+              centers.push(pt);
+            }
+          }
+        }
+      }
+
+      // Draw geodesic circles on the sphere for each center
+      const linePositions = [];
+
+      centers.forEach(c => {
+        const n = c.clone().normalize();
+        // Local tangent frame at this circle's center
+        let t1 = new THREE.Vector3(0, 1, 0);
+        if (Math.abs(n.dot(t1)) > 0.99) t1.set(1, 0, 0);
+        const t2 = new THREE.Vector3().crossVectors(n, t1).normalize();
+        t1.crossVectors(t2, n).normalize();
+
+        // Draw circle as small-circle on sphere (constant angular radius)
+        let prev = null;
+        for (let i = 0; i <= segments; i++) {
+          const angle = (i / segments) * Math.PI * 2;
+          // Point at angular distance circleAngR from center
+          const p = n.clone().multiplyScalar(Math.cos(circleAngR))
+            .addScaledVector(t1, Math.sin(circleAngR) * Math.cos(angle))
+            .addScaledVector(t2, Math.sin(circleAngR) * Math.sin(angle))
+            .normalize()
+            .multiplyScalar(r);
+          if (prev) {
+            linePositions.push(prev.x, prev.y, prev.z, p.x, p.y, p.z);
+          }
+          prev = p;
+        }
+      });
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+      const mat = new THREE.LineBasicMaterial({ color: 0xffaa44, transparent: true, opacity: 0.5 });
+      this.groups.fol.add(new THREE.LineSegments(geo, mat));
+    });
+  }
+
+  createCityMarkers() {
+    this.groups.cities.clear();
+    this.citySprites = {};
+
+    Object.entries(CITIES).forEach(([key, city]) => {
+      const pos = latLonToVec3(city.lat, city.lon, GLOBE_RADIUS + 0.015);
+
+      // Dot
+      const geo = new THREE.SphereGeometry(0.01, 8, 8);
+      const mat = new THREE.MeshBasicMaterial({ color: city.color });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(pos);
+      this.groups.cities.add(mesh);
+
+      // Label (canvas sprite)
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '24px Helvetica Neue';
+      ctx.textAlign = 'center';
+      ctx.fillText(city.name, 128, 40);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.position.copy(latLonToVec3(city.lat, city.lon, GLOBE_RADIUS + 0.06));
+      sprite.scale.set(0.3, 0.075, 1);
+      this.groups.cities.add(sprite);
+      this.citySprites[key] = { mesh, sprite };
+    });
+  }
+
+  updatePinInfo() {
+    const el = document.getElementById('pin-info');
+    // Cancel any pending geocode requests
+    if (this._geocodeAbort) this._geocodeAbort.abort();
+    this._geocodeAbort = new AbortController();
+    const signal = this._geocodeAbort.signal;
+
+    let html = `<b>Pinned vertex (#0) → ${CITIES[this.pinCity].name}</b><br>`;
+    html += '<div style="margin-top:6px; color:#aaa;">Other vertices:</div>';
+
+    this.pinnedVertices.forEach((v, i) => {
+      if (i === 0) return;
+      const ll = vec3ToLatLon(v);
+      const lat = ll.lat.toFixed(2);
+      const lon = ll.lon.toFixed(2);
+      const latLabel = ll.lat >= 0 ? 'N' : 'S';
+      const lonLabel = ll.lon >= 0 ? 'E' : 'W';
+      const gmapsUrl = `https://www.google.com/maps/@${ll.lat.toFixed(4)},${ll.lon.toFixed(4)},6z`;
+
+      html += `<div class="vertex-row">`;
+      html += `<a href="${gmapsUrl}" target="_blank" title="Open in Google Maps">`;
+      html += `#${i}: <span class="vertex-coords">${Math.abs(lat)}°${latLabel}, ${Math.abs(lon)}°${lonLabel}</span>`;
+      html += ` 🗺</a>`;
+      html += `<span class="vertex-place loading" id="place-${i}">loading...</span>`;
+      html += `</div>`;
+    });
+
+    el.innerHTML = html;
+
+    // Reverse geocode each vertex via local proxy → Nominatim
+    // Cache results to minimize API calls
+    if (!App._geocodeCache) App._geocodeCache = {};
+
+    const geocodeVertex = async (idx) => {
+      const ll = vec3ToLatLon(this.pinnedVertices[idx]);
+      const placeEl = document.getElementById(`place-${idx}`);
+      if (!placeEl) return;
+
+      // Round to 1 decimal for cache key (same general area)
+      const cacheKey = `${ll.lat.toFixed(1)},${ll.lon.toFixed(1)}`;
+      if (App._geocodeCache[cacheKey]) {
+        placeEl.textContent = App._geocodeCache[cacheKey];
+        placeEl.classList.remove('loading');
+        return;
+      }
+
+      try {
+        const resp = await fetch(
+          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${ll.lat.toFixed(4)}&longitude=${ll.lon.toFixed(4)}&localityLanguage=en`,
+          { signal }
+        );
+        if (signal.aborted) return;
+        const data = await resp.json();
+        if (signal.aborted) return;
+        let name;
+        // BigDataCloud response format
+        const parts = [data.locality, data.principalSubdivision, data.countryName].filter(Boolean);
+        if (parts.length > 0) {
+          name = parts.join(', ');
+        } else if (data.display_name) {
+          name = data.display_name.split(',').slice(0, 3).join(',').trim();
+        } else {
+          name = '🌊 Ocean';
+        }
+        App._geocodeCache[cacheKey] = name;
+        placeEl.textContent = name;
+      } catch (e) {
+        if (signal.aborted) return;
+        const name = Math.abs(ll.lat) > 70 ? '🧊 Polar region' : '🌊 Ocean';
+        placeEl.textContent = name;
+      }
+      placeEl.classList.remove('loading');
+    };
+
+    // Sequential with 2s delay to respect Nominatim rate limit
+    (async () => {
+      for (let i = 1; i < this.pinnedVertices.length; i++) {
+        if (signal.aborted) return;
+        await geocodeVertex(i);
+        if (i < this.pinnedVertices.length - 1) {
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+    })();
+  }
+
+  // ─── Dymaxion Flat View ──────────────────────────────────
+  buildFlatView() {
+    this.groups.flat.clear();
+    const layout = buildDymaxionNet(this.icosaData.faces);
+    const linePositions = [];
+
+    // Subdivide each icosa face into small triangles for texture mapping
+    const subDiv = 12; // subdivision frequency for texture detail
+
+    this.icosaData.faces.forEach(([ai, bi, ci], faceIdx) => {
+      const lf = layout[faceIdx];
+      // 2D flat triangle corners (already centered and scaled by buildDymaxionNet)
+      const f0 = new THREE.Vector2(lf.verts[0][0], lf.verts[0][1]);
+      const f1 = new THREE.Vector2(lf.verts[1][0], lf.verts[1][1]);
+      const f2 = new THREE.Vector2(lf.verts[2][0], lf.verts[2][1]);
+
+      // 3D sphere triangle corners (pinned icosahedron)
+      const s0 = this.pinnedVertices[ai].clone().normalize();
+      const s1 = this.pinnedVertices[bi].clone().normalize();
+      const s2 = this.pinnedVertices[ci].clone().normalize();
+
+      // Build subdivided mesh: barycentric grid
+      const positions = [];
+      const uvs = [];
+      const indices = [];
+      const grid = [];
+
+      for (let i = 0; i <= subDiv; i++) {
+        grid[i] = [];
+        for (let j = 0; j <= subDiv - i; j++) {
+          const a = i / subDiv, b = j / subDiv, c = 1 - a - b;
+
+          // Flat position (2D -> 3D with z=0)
+          const fx = c * f0.x + a * f1.x + b * f2.x;
+          const fy = c * f0.y + a * f1.y + b * f2.y;
+          positions.push(fx, fy, 0);
+
+          // Spherical position for UV (interpolate on sphere, then convert to equirectangular UV)
+          const sp = new THREE.Vector3()
+            .addScaledVector(s0, c)
+            .addScaledVector(s1, a)
+            .addScaledVector(s2, b)
+            .normalize();
+          const ll = vec3ToLatLon(sp);
+          // Equirectangular UV: u = (lon+180)/360, v = (90-lat)/180
+          const u = (ll.lon + 180) / 360;
+          const v = (90 - ll.lat) / 180;
+          uvs.push(u, v);
+
+          grid[i][j] = i * (2 * subDiv - i + 3) / 2 + j; // vertex index
+        }
+      }
+
+      // Recompute vertex indices properly
+      let vertIdx = 0;
+      for (let i = 0; i <= subDiv; i++) {
+        for (let j = 0; j <= subDiv - i; j++) {
+          grid[i][j] = vertIdx++;
+        }
+      }
+
+      for (let i = 0; i < subDiv; i++) {
+        for (let j = 0; j < subDiv - i; j++) {
+          indices.push(grid[i][j], grid[i + 1][j], grid[i][j + 1]);
+          if (j < subDiv - i - 1) {
+            indices.push(grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]);
+          }
+        }
+      }
+
+      const faceGeo = new THREE.BufferGeometry();
+      faceGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      faceGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      faceGeo.setIndex(indices);
+      faceGeo.computeVertexNormals();
+
+      const faceMat = this.earthTexture
+        ? new THREE.MeshBasicMaterial({ map: this.earthTexture, side: THREE.DoubleSide })
+        : new THREE.MeshBasicMaterial({
+            color: new THREE.Color().setHSL(faceIdx / 20, 0.3, 0.15),
+            transparent: true, opacity: 0.5, side: THREE.DoubleSide,
+          });
+      this.groups.flat.add(new THREE.Mesh(faceGeo, faceMat));
+
+      // Face outline
+      linePositions.push(
+        f0.x, f0.y, 0.001, f1.x, f1.y, 0.001,
+        f1.x, f1.y, 0.001, f2.x, f2.y, 0.001,
+        f2.x, f2.y, 0.001, f0.x, f0.y, 0.001,
+      );
+
+      // Subdivision overlay lines
+      if (this.frequency > 1) {
+        for (let i = 0; i < this.frequency; i++) {
+          for (let j = 0; j < this.frequency - i; j++) {
+            const ba = i / this.frequency, bb = j / this.frequency, bc = 1 - ba - bb;
+            const ba2 = (i+1) / this.frequency, bb2 = (j+1) / this.frequency;
+            const p0x = bc * f0.x + ba * f1.x + bb * f2.x;
+            const p0y = bc * f0.y + ba * f1.y + bb * f2.y;
+            const bc1 = 1 - ba2 - bb;
+            const p1x = bc1 * f0.x + ba2 * f1.x + bb * f2.x;
+            const p1y = bc1 * f0.y + ba2 * f1.y + bb * f2.y;
+            const bc2 = 1 - ba - bb2;
+            const p2x = bc2 * f0.x + ba * f1.x + bb2 * f2.x;
+            const p2y = bc2 * f0.y + ba * f1.y + bb2 * f2.y;
+            linePositions.push(
+              p0x, p0y, 0.002, p1x, p1y, 0.002,
+              p1x, p1y, 0.002, p2x, p2y, 0.002,
+              p2x, p2y, 0.002, p0x, p0y, 0.002,
+            );
+            if (j < this.frequency - i - 1) {
+              const bc3 = 1 - ba2 - bb2;
+              const p3x = bc3 * f0.x + ba2 * f1.x + bb2 * f2.x;
+              const p3y = bc3 * f0.y + ba2 * f1.y + bb2 * f2.y;
+              linePositions.push(
+                p1x, p1y, 0.002, p3x, p3y, 0.002,
+                p3x, p3y, 0.002, p2x, p2y, 0.002,
+              );
+            }
+          }
+        }
+      }
+
+      // Face label
+      const cx = (f0.x + f1.x + f2.x) / 3;
+      const cy = (f0.y + f1.y + f2.y) / 3;
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '24px Helvetica Neue';
+      ctx.textAlign = 'center';
+      ctx.fillText(faceIdx.toString(), 32, 40);
+      const tex = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.position.set(cx, cy, 0.01);
+      sprite.scale.set(0.1, 0.1, 1);
+      this.groups.flat.add(sprite);
+    });
+
+    // Flat city markers — using proper spherical point-in-triangle + gnomonic barycentric
+    if (this.showCities) {
+      // Helper: project a lat/lon point onto the flat Dymaxion layout
+      const projectToFlat = (lat, lon) => {
+        const pos3D = latLonToVec3(lat, lon).normalize();
+        const result = findFaceAndBary(pos3D, this.icosaData.faces, this.pinnedVertices);
+        if (!result) return null;
+        const lf = layout[result.faceIdx];
+        const [fv0, fv1, fv2] = lf.verts;
+        return {
+          x: result.u * fv0[0] + result.v * fv1[0] + result.w * fv2[0],
+          y: result.u * fv0[1] + result.v * fv1[1] + result.w * fv2[1],
+        };
+      };
+
+      Object.entries(CITIES).forEach(([key, city]) => {
+        const flat = projectToFlat(city.lat, city.lon);
+        if (!flat) return;
+
+        const dotGeo = new THREE.SphereGeometry(0.015, 8, 8);
+        const dotMat = new THREE.MeshBasicMaterial({ color: city.color });
+        const dot = new THREE.Mesh(dotGeo, dotMat);
+        dot.position.set(flat.x, flat.y, 0.02);
+        this.groups.flat.add(dot);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '24px Helvetica Neue';
+        ctx.textAlign = 'center';
+        ctx.fillText(city.name, 128, 40);
+        const tex = new THREE.CanvasTexture(canvas);
+        const sMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+        const sprite = new THREE.Sprite(sMat);
+        sprite.position.set(flat.x, flat.y + 0.06, 0.03);
+        sprite.scale.set(0.3, 0.075, 1);
+        this.groups.flat.add(sprite);
+      });
+
+      // Also project preset markers if active
+      if (this.activePreset !== 'none' && POINT_SETS[this.activePreset]) {
+        POINT_SETS[this.activePreset].points.forEach((pt, i) => {
+          const flat = projectToFlat(pt.lat, pt.lon);
+          if (!flat) return;
+          const hue = i / 12;
+          const color = new THREE.Color().setHSL(hue, 0.8, 0.6);
+          const geo = new THREE.OctahedronGeometry(0.018, 0);
+          const mat = new THREE.MeshBasicMaterial({ color });
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.position.set(flat.x, flat.y, 0.02);
+          this.groups.flat.add(mesh);
+
+          const canvas = document.createElement('canvas');
+          canvas.width = 256; canvas.height = 48;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = `hsl(${hue * 360}, 80%, 75%)`;
+          ctx.font = '18px Helvetica Neue';
+          ctx.textAlign = 'center';
+          ctx.fillText(pt.name, 128, 30);
+          const tex = new THREE.CanvasTexture(canvas);
+          const sMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+          const sprite = new THREE.Sprite(sMat);
+          sprite.position.set(flat.x, flat.y + 0.05, 0.03);
+          sprite.scale.set(0.3, 0.05, 1);
+          this.groups.flat.add(sprite);
+        });
+      }
+    }
+
+    const edgeGeo = new THREE.BufferGeometry();
+    edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x6af0ff, transparent: true, opacity: 0.8 });
+    this.groups.flat.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+    this.groups.flat.visible = false;
+  }
+
+  setMode(mode) {
+    this.mode = mode;
+    const isGlobe = mode === 'globe';
+
+    this.groups.globe.visible = isGlobe;
+    this.groups.icosa.visible = isGlobe;
+    this.groups.subdivision.visible = isGlobe;
+    this.groups.fol.visible = isGlobe && this.showFOL;
+    this.groups.cities.visible = isGlobe && this.showCities;
+
+    if (!isGlobe) {
+      this.buildFlatView();
+      this.groups.flat.visible = true;
+      this.camera.position.set(0, 0, 5);
+      this.controls.target.set(0, 0, 0);
+    } else {
+      this.groups.flat.visible = false;
+      this.camera.position.set(0, 0, 3);
+      this.controls.target.set(0, 0, 0);
+    }
+
+    this.controls.update();
+
+    document.getElementById('btn-globe').classList.toggle('active', isGlobe);
+    document.getElementById('btn-flat').classList.toggle('active', !isGlobe);
+  }
+
+  setupUI() {
+    document.getElementById('btn-globe').onclick = () => this.setMode('globe');
+    document.getElementById('btn-flat').onclick = () => this.setMode('flat');
+
+    document.getElementById('frequency').oninput = (e) => {
+      this.frequency = parseInt(e.target.value);
+      document.getElementById('freq-val').textContent = this.frequency;
+      this.updateIcosahedron();
+      if (this.mode === 'flat') { this.buildFlatView(); this.groups.flat.visible = true; }
+    };
+
+    document.getElementById('spin').oninput = (e) => {
+      this.spinAngle = parseInt(e.target.value);
+      document.getElementById('spin-val').textContent = this.spinAngle + '°';
+      this.updateIcosahedron();
+      if (this.mode === 'flat') { this.buildFlatView(); this.groups.flat.visible = true; }
+    };
+
+    document.getElementById('show-fol').onchange = (e) => {
+      this.showFOL = e.target.checked;
+      this.updateIcosahedron();
+      this.groups.fol.visible = this.showFOL;
+    };
+
+    document.getElementById('show-cities').onchange = (e) => {
+      this.showCities = e.target.checked;
+      this.groups.cities.visible = this.showCities;
+    };
+
+    document.getElementById('show-pentagons').onchange = (e) => {
+      this.showPentagons = e.target.checked;
+      this.groups.pentagons.clear();
+      if (this.showPentagons) this.drawPentagonDefects();
+      this.groups.pentagons.visible = this.showPentagons;
+    };
+
+    document.getElementById('pin-city').onchange = (e) => {
+      this.pinCity = e.target.value;
+      this.updateIcosahedron();
+      if (this.mode === 'flat') { this.buildFlatView(); this.groups.flat.visible = true; }
+    };
+
+    document.getElementById('preset-set').onchange = (e) => {
+      this.activePreset = e.target.value;
+      this.drawPresetMarkers();
+      const desc = document.getElementById('preset-desc');
+      if (this.activePreset !== 'none' && POINT_SETS[this.activePreset]) {
+        desc.textContent = POINT_SETS[this.activePreset].desc;
+      } else {
+        desc.textContent = '';
+      }
+    };
+  }
+
+  drawPresetMarkers() {
+    this.groups.presetMarkers.clear();
+    if (this.activePreset === 'none' || !POINT_SETS[this.activePreset]) return;
+
+    const set = POINT_SETS[this.activePreset];
+    const markerR = GLOBE_RADIUS + 0.008;
+
+    set.points.forEach((pt, i) => {
+      const pos = latLonToVec3(pt.lat, pt.lon, markerR);
+
+      // Diamond marker
+      const geo = new THREE.OctahedronGeometry(0.018, 0);
+      const hue = i / 12;
+      const color = new THREE.Color().setHSL(hue, 0.8, 0.6);
+      const mat = new THREE.MeshBasicMaterial({ color });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(pos);
+      this.groups.presetMarkers.add(mesh);
+
+      // Label
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = `hsl(${hue * 360}, 80%, 75%)`;
+      ctx.font = '20px Helvetica Neue';
+      ctx.textAlign = 'center';
+      ctx.fillText(pt.name, 256, 24);
+      ctx.font = '14px Helvetica Neue';
+      ctx.fillStyle = '#aaa';
+      ctx.fillText(pt.sig.slice(0, 40), 256, 48);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.position.copy(latLonToVec3(pt.lat, pt.lon, markerR + 0.04));
+      sprite.scale.set(0.4, 0.05, 1);
+      this.groups.presetMarkers.add(sprite);
+    });
+  }
+
+  onResize() {
+    this.camera.aspect = innerWidth / innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(innerWidth, innerHeight);
+  }
+
+  animate() {
+    requestAnimationFrame(() => this.animate());
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
+// ─── Spherical Barycentric Coordinates ───────────────────────
+// Proper spherical point-in-triangle test + gnomonic barycentric coordinates
+function findFaceAndBary(point, faces, vertices) {
+  const p = point.clone().normalize();
+
+  for (let fi = 0; fi < faces.length; fi++) {
+    const [ai, bi, ci] = faces[fi];
+    const a = vertices[ai].clone().normalize();
+    const b = vertices[bi].clone().normalize();
+    const c = vertices[ci].clone().normalize();
+
+    // Cross product sign test: point is inside spherical triangle if
+    // it's on the same side of all three great circle arcs
+    const d0 = new THREE.Vector3().crossVectors(a, b).dot(p);
+    const d1 = new THREE.Vector3().crossVectors(b, c).dot(p);
+    const d2 = new THREE.Vector3().crossVectors(c, a).dot(p);
+
+    if ((d0 >= -1e-6 && d1 >= -1e-6 && d2 >= -1e-6) ||
+        (d0 <= 1e-6 && d1 <= 1e-6 && d2 <= 1e-6)) {
+
+      // Gnomonic projection onto tangent plane at face centroid
+      const centroid = new THREE.Vector3().add(a).add(b).add(c).normalize();
+      const dA = a.dot(centroid), dB = b.dot(centroid);
+      const dC = c.dot(centroid), dP = p.dot(centroid);
+      if (Math.abs(dP) < 1e-10) continue; // point on opposite hemisphere
+
+      const pA = a.clone().divideScalar(dA);
+      const pB = b.clone().divideScalar(dB);
+      const pC = c.clone().divideScalar(dC);
+      const pP = p.clone().divideScalar(dP);
+
+      // 2D barycentric on gnomonic-projected points
+      const v0 = pB.clone().sub(pA);
+      const v1 = pC.clone().sub(pA);
+      const v2 = pP.clone().sub(pA);
+
+      const d00 = v0.dot(v0), d01 = v0.dot(v1), d11 = v1.dot(v1);
+      const d20 = v2.dot(v0), d21 = v2.dot(v1);
+      const denom = d00 * d11 - d01 * d01;
+      if (Math.abs(denom) < 1e-12) continue;
+
+      const bv = (d11 * d20 - d01 * d21) / denom;
+      const bw = (d00 * d21 - d01 * d20) / denom;
+      const bu = 1 - bv - bw;
+
+      return { faceIdx: fi, u: bu, v: bv, w: bw };
+    }
+  }
+  return null;
+}
+
+// Legacy wrapper for FOL code that still calls this
+function sphericalBarycentric(p, a, b, c) {
+  const v0 = b.clone().sub(a);
+  const v1 = c.clone().sub(a);
+  const v2 = p.clone().sub(a);
+  const d00 = v0.dot(v0), d01 = v0.dot(v1), d11 = v1.dot(v1);
+  const d20 = v2.dot(v0), d21 = v2.dot(v1);
+  const denom = d00 * d11 - d01 * d01;
+  if (Math.abs(denom) < 1e-10) return null;
+  const v = (d11 * d20 - d01 * d21) / denom;
+  const w = (d00 * d21 - d01 * d20) / denom;
+  return { u: 1 - v - w, v, w };
+}
+
+// ─── Start ───────────────────────────────────────────────────
+const app = new App();
+
+</script>
+</body>
+</html>
